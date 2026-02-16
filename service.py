@@ -14,6 +14,7 @@ def log(message):
     xbmc.log(f"[Gemini-RO-Translator] {message}", xbmc.LOGINFO)
 
 def translate_batch(text_block):
+    temp_setting = float(ADDON.getSetting('temp') or 0.1)
     """Sends a block of SRT text to Gemini 2.0 Flash."""
     if not API_KEY:
         log("Error: API Key is missing in settings.")
@@ -35,8 +36,8 @@ def translate_batch(text_block):
             "parts": [{"text": prompt + text_block}]
         }],
         "generationConfig": {
-            "temperature": 0.1,
-            "topP": 0.95
+            "temperature": temp_setting,
+            "topP": 0.9
         }
     }
 
@@ -86,3 +87,4 @@ if __name__ == '__main__':
         # The original Kirek66 logic uses a player callback or file check
         if monitor.waitForAbort(10):
             break
+
