@@ -1,15 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-    <category label="Konfiguracja">
-        <setting id="api_key"
-                 type="text"
-                 label="Klucz API OpenAI"
+    <category label="Configurare Traducere">
+        <setting id="api_key" 
+                 type="text" 
+                 label="Google Gemini API Key" 
                  default="" />
 
-        <setting id="model"
-                 type="enum"
-                 label="Model AI"
-                 values="gpt-4o-mini|gpt-4o"
+        <setting id="model" 
+                 type="enum" 
+                 label="Model AI" 
+                 values="gemini-2.0-flash|gemini-1.5-flash" 
                  default="0" />
+                 
+        <setting id="target_lang" 
+                 type="text" 
+                 label="Limba Țintă" 
+                 default="Romanian" 
+                 enable="false" />
     </category>
 </settings>
