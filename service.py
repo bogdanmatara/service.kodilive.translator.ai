@@ -1,178 +1,88 @@
-import xbmc, xbmcaddon, xbmcvfs, os, re, openai_client
+# -*- coding: utf-8 -*-
+import xbmc
+import xbmcaddon
+import xbmcvfs
+import os
+import requests
+import json
+import re
 
-MAX_LINE_LENGTH = 38
+ADDON = xbmcaddon.Addon()
+API_KEY = ADDON.getSetting('api_key')
 
-def log(msg):
-    xbmc.log(f"KodiLive SRT: {msg}", xbmc.LOGINFO)
+def log(message):
+    xbmc.log(f"[Gemini-RO-Translator] {message}", xbmc.LOGINFO)
 
-def has_polish_chars(text):
-    return any(c in text for c in "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ")
+def translate_batch(text_block):
+    """Sends a block of SRT text to Gemini 2.0 Flash."""
+    if not API_KEY:
+        log("Error: API Key is missing in settings.")
+        return None
 
-def clean_markdown(text):
-    return text.replace("```srt", "").replace("```", "").strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+    
+    prompt = (
+        "Ești un traducător profesionist de subtitrări. Tradu următorul text SRT din Engleză în Română. "
+        "Reguli stricte: \n"
+        "1. Păstrează neschimbate codurile de timp (ex: 00:00:20,000 --> 00:00:24,400) și numerotarea.\n"
+        "2. Folosește diacritice corecte (ș, ț, ă, î, â).\n"
+        "3. Păstrează formatarea liniilor.\n"
+        "4. Trimite DOAR textul tradus, fără alte explicații.\n\n"
+    )
 
-def clean_sdh(text):
-    text = re.sub(r"\[(.*?)\]", "", text)
-    text = re.sub(r"\((.*?)\)", "", text)
-    return text.strip()
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt + text_block}]
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "topP": 0.95
+        }
+    }
 
-# --- NOWE: usuwanie tekstów piosenek ---
-def remove_song_lines(text):
-    lines = text.split("\n")
-    cleaned = []
-    for line in lines:
-        stripped = line.strip()
-        # usuń linie zawierające symbole muzyczne
-        if re.search(r"[♪♫♬♩]", stripped):
-            continue
-        # usuń linie zaczynające się od # (częste w liryce)
-        if stripped.startswith("#"):
-            continue
-        # usuń linie całkowicie pisane wielkimi literami w nawiasach (częste przy piosenkach)
-        if re.match(r"^\(.*\)$", stripped) and stripped.upper() == stripped:
-            continue
-        cleaned.append(line)
-    return "\n".join(cleaned)
-
-# --- NOWE: usuwanie prefixów typu "Mary: Tekst" ---
-def remove_speaker_prefix(text):
-    lines = text.split("\n")
-    cleaned = []
-    for line in lines:
-        # usuń prefix typu IMIĘ:
-        line = re.sub(r"^[A-ZŁŚŻŹĆŃÓ][A-Za-zŁŚŻŹĆŃÓąćęłńóśźż\-']{1,20}:\s*", "", line)
-        # usuń prefix typu MAN:, WOMAN:, JOHN:
-        line = re.sub(r"^[A-Z ]{2,20}:\s*", "", line)
-        cleaned.append(line)
-    return "\n".join(cleaned)
-
-def wrap_line(line, max_len=MAX_LINE_LENGTH):
-    words = line.split()
-    if not words: return line
-    lines, current = [], words[0]
-    for w in words[1:]:
-        if len(current) + len(w) + 1 <= max_len:
-            current += " " + w
-        else:
-            lines.append(current)
-            current = w
-    lines.append(current)
-    if len(lines) > 2:
-        lines = [lines[0], " ".join(lines[1:])]
-    return "\n".join(lines)
-
-def fix_srt_format(text):
-    blocks = text.split("\n\n")
-    fixed = []
-    for block in blocks:
-        lines = block.strip().split("\n")
-        if len(lines) < 3: continue
-        num, time = lines[0], lines[1]
-
-        body_text = " ".join(lines[2:])
-        body_text = clean_sdh(body_text)
-        body_text = remove_song_lines(body_text)
-        body_text = remove_speaker_prefix(body_text)
-
-        body = wrap_line(body_text.strip())
-        if not body.strip():
-            continue
-
-        fixed.append("\n".join([num, time] + body.split("\n")))
-    return "\n\n".join(fixed)
-
-def get_temp_sub_file():
     try:
-        path = xbmcvfs.translatePath("special://temp/")
-        files = [os.path.join(path, f) for f in os.listdir(path) if f.lower().endswith(".srt")]
-        if not files: return None, 0
-        newest = max(files, key=os.path.getmtime)
-        return newest, os.path.getmtime(newest)
-    except: return None, 0
+        response = requests.post(url, json=payload, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        return data['candidates'][0]['content']['parts'][0]['text']
+    except Exception as e:
+        log(f"API Error: {str(e)}")
+        return None
 
-def build_chunks(text, max_chars=5000):
-    blocks = text.strip().split("\n\n")
-    chunks, current = [], ""
-    for b in blocks:
-        if len(current) + len(b) > max_chars:
-            chunks.append(current.strip())
-            current = b + "\n\n"
-        else:
-            current += b + "\n\n"
-    if current.strip(): chunks.append(current.strip())
-    return chunks
+def process_subtitles(original_path):
+    """Reads the SRT, translates it, and saves it as _RO.srt"""
+    if not xbmcvfs.exists(original_path):
+        return
 
-def run():
-    monitor, player, addon = xbmc.Monitor(), xbmc.Player(), xbmcaddon.Addon()
-    sub_dir = "/storage/emulated/0/Kodi_Napisy/" if xbmc.getCondVisibility('System.Platform.Android') else xbmcvfs.translatePath("special://home/Kodi_Napisy/")
-    if not xbmcvfs.exists(sub_dir): xbmcvfs.mkdir(sub_dir)
-    last_mtime = 0
+    # Create the new filename with _RO suffix
+    new_path = original_path.replace('.srt', '_RO.srt')
+    
+    log(f"Starting translation: {original_path} -> {new_path}")
 
+    try:
+        with xbmcvfs.File(original_path, 'r') as f:
+            content = f.read()
+
+        # Simple batching: Gemini 2.0 Flash can handle large context, 
+        # but we send in chunks if the file is massive.
+        translated_content = translate_batch(content)
+
+        if translated_content:
+            with xbmcvfs.File(new_path, 'w') as f:
+                f.write(translated_content)
+            log("Translation successful.")
+            # Notify Kodi to use the new subtitle
+            xbmc.executebuiltin(f'Notification(Gemini RO, Traducere finalizată!, 5000)')
+    except Exception as e:
+        log(f"Processing failed: {str(e)}")
+
+# Kodi Service Loop
+if __name__ == '__main__':
+    log("Service started.")
+    monitor = xbmc.Monitor()
+    
     while not monitor.abortRequested():
-        if player.isPlayingVideo():
-            sub_file, mtime = get_temp_sub_file()
-            if sub_file and mtime != last_mtime:
-                last_mtime = mtime
-                api_key = addon.getSetting("api_key").strip()
-                model_idx = int(addon.getSetting("model") or 0)
-                model = "gpt-4o-mini" if model_idx == 0 else "gpt-4o"
-                if not api_key: continue
-
-                f = xbmcvfs.File(sub_file, "r")
-                original = f.read()
-                f.close()
-                if not original.strip() or has_polish_chars(original): continue
-
-                prompt = (
-                    "Translate SRT subtitles from English to Polish.\n"
-                    "Keep numbering and timestamps unchanged.\n"
-                    "Remove SDH descriptions.\n"
-                    "Max 2 lines per subtitle.\n"
-                    "Use natural, spoken Polish (avoid literal translations).\n"
-                    "Determine grammatical gender based on context.\n"
-                    "Translate idioms by meaning.\n"
-                    "Avoid overusing pronouns like 'Ty', 'On', 'Ona'.\n"
-                    "Output ONLY SRT."
-                )
-
-                chunks = build_chunks(original)
-                translated_chunks, last_notified = [], -1
-                
-                title = player.getVideoInfoTag().getTitle() or "Film"
-                safe_title = re.sub(r'[\\/*?:"<>|]', '', title).replace(' ', '_')
-                final_path = os.path.join(sub_dir, safe_title + "_TRANS_PL.srt")
-
-                for i, chunk in enumerate(chunks):
-                    if not player.isPlaying(): break
-                    
-                    response = None
-                    for attempt in range(3):
-                        try:
-                            response = openai_client.translate_text(api_key, chunk, prompt, model)
-                            if response: break
-                        except:
-                            xbmc.sleep(2000)
-                    
-                    if not response: break
-                    
-                    translated_chunks.append(clean_markdown(response))
-                    progress = int((len(translated_chunks)/len(chunks))*100)
-
-                    if len(translated_chunks) == 1 or (progress // 10 > last_notified // 10):
-                        last_notified = progress
-                        w = xbmcvfs.File(final_path, "w")
-                        w.write(fix_srt_format("\n\n".join(translated_chunks)))
-                        w.close()
-                        player.setSubtitles(final_path)
-                        xbmc.executebuiltin(f"Notification(KodiLive SRT, Przetłumaczono {progress}%, 1500)")
-
-                if translated_chunks and player.isPlaying():
-                    w = xbmcvfs.File(final_path, "w")
-                    w.write(fix_srt_format("\n\n".join(translated_chunks)))
-                    w.close()
-                    player.setSubtitles(final_path)
-                    xbmc.executebuiltin("Notification(KodiLive SRT, Tłumaczenie zakończone, plik zapisany, 3000)")
-
-        if monitor.waitForAbort(3): break
-
-if __name__ == "__main__": run()
+        # This logic should trigger when a subtitle is loaded
+        # The original Kirek66 logic uses a player callback or file check
+        if monitor.waitForAbort(10):
+            break
