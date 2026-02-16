@@ -13,7 +13,7 @@ def clean_sdh(text):
     text = re.sub(r'^[A-Z\s]+:\s*', '', text, flags=re.MULTILINE)
     return text.strip()
 
-def split_srt(content, max_lines=100):
+def split_srt(content, max_lines=50):
     """
     Splits the SRT into chunks. 
     Gemini 2.0 Flash can handle 100+ lines easily.
@@ -40,3 +40,4 @@ def split_srt(content, max_lines=100):
 def merge_srt(chunks):
     """Joins translated chunks back together."""
     return "".join(chunks)
+
