@@ -11,7 +11,14 @@
                  label="Model AI" 
                  values="gemini-2.0-flash|gemini-1.5-flash" 
                  default="0" />
-                 
+        
+        <setting id="temp" 
+                 type="slider" 
+                 label="Temperature" 
+                 default="0.1" 
+                 range="0,0.1,1.0" 
+                 option="float"/>
+    
         <setting id="target_lang" 
                  type="text" 
                  label="Limba Țintă" 
@@ -19,3 +26,4 @@
                  enable="false" />
     </category>
 </settings>
+
