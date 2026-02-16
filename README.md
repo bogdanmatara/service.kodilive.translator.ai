@@ -1,10 +1,13 @@
-Kodi Live SRT Translator to dodatek do Kodi, który tłumaczyz pomocą AI „na żywo” napisy SRT z języka angielskiego na polski i wyświetla je na filmie/serialu.
-Do działania wymaga API Key OpenAI.
-Kodi Live Translator działa w tle. Gdy chcemy tłumaczyć napisy, wchodzimy, przykładowo, do FenLightAM, wybieramy i uruchamiamy film/serial, następnie wczytujemy pasujące angielskie napisy np. z OpenSubtitles. Dodatek zaczyna działać od razu, jednak przez około minutę do półtorej widzimy na ekranie tylko napisy angielskie. W momencie, gdy w wyskakującym oknie pojawia się informacja „Tłumaczenie x%, wyświetlane napisy zmieniają się na polskie.
-Ta krótka przerwa na początku to czas potrzebny na przesłanie do AI, przetłumaczenie i powrót pierwszej partii napisów. Oczywiście w tym momencie możemy wrócić do początku filmu i sobie oglądać z napisami, można też wcześniej dać pauzę i czekać na całość tłumaczenia, po czym włączyć play.
-Od tej pory na ekranie widzimy przetłumaczone polskie  napisy i co pewien czas wyskakujące okno z procentową informacją o postępie tłumaczenia. Tłumaczenie kończy się wraz z informacją o 100% i komunikatem „Napisy przetłumaczone”.
-Napisy już przetłumaczone zapisują się na stałe w katalogu /storage/emulated/0/Kodi_Napisy, z nazwą filmu i dodatkiem w nazwie TRANS_PL. Można z nich korzystać później, archiwizować itp.
-Jakościowo napisy są o niebo lepsze od mechanicznego tłumaczenia różnych translatorów, ale nie idealne.
-W konfiguracji mamy wybór między GPT 4o-mini i GPT 4o. GPT 4o-mini to mniejsze zużycie tokenów, trochę wolniejsze i jakościowo słabsze tłumaczenie. GPT 4o to więcej tokenów, ale lepsza szybkość i jakość.
-Bardzo proszę o uwagi i sugestie, odpowiem też na pytania. W wolnych chwilach będę chciał usprawniać program.
-
+Gemini RO Subtitle Translator
+Gemini RO Subtitle Translator este un supliment (addon) pentru Kodi care traduce „live”, cu ajutorul inteligenței artificiale, subtitrările SRT din limba engleză în limba română și le afișează peste film sau serial.
+Pentru a funcționa, este necesar un API Key Google Gemini.
+Cum funcționează:
+Addon-ul rulează în fundal. Când dorești să traduci subtitrările, intri, de exemplu, în FenLight sau orice alt addon de streaming, pornești filmul/serialul și încarci subtitrările corespunzătoare în limba engleză (ex. de pe OpenSubtitles).
+Addon-ul începe să lucreze imediat, însă timp de aproximativ un minut sau un minut și jumătate vei vedea pe ecran doar subtitrările în engleză. În momentul în care apare fereastra pop-up cu informația „Traducere x%”, subtitrările afișate se schimbă în limba română.
+Această scurtă pauză de la început este timpul necesar pentru trimiterea către AI, traducerea și primirea primei părți de subtitrări. Desigur, în acel moment te poți întoarce la începutul filmului pentru a viziona cu subtitrare, sau poți pune pauză de la început și aștepta finalizarea traducerii înainte de a apăsa Play.
+Caracteristici:
+• Progres în timp real: Pe ecran vor apărea periodic notificări cu procentajul traducerii. Procesul se încheie cu mesajul „Traducere finalizată”.
+• Salvare permanentă: Subtitrările traduse sunt salvate permanent în directorul /storage/emulated/0/Kodi_Napisy (sau calea corespunzătoare sistemului tău), având numele filmului și sufixul _RO.srt. Acestea pot fi folosite ulterior sau arhivate.
+• Calitate Superioară: Calitatea traducerii este mult mai bună decât cea oferită de traducerile mecanice standard, datorită modelului Gemini 2.0 Flash.
+• Configurare: În setări poți introduce cheia API și poți alege modelul dorit (Gemini 2.0 Flash fiind recomandat pentru viteză și eficiență).
+Vă rog să lăsați sugestii sau observații. Voi încerca să îmbunătățesc programul în timpul liber.
