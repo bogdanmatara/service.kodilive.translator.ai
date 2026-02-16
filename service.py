@@ -16,6 +16,36 @@ def clean_sdh(text):
     text = re.sub(r"\((.*?)\)", "", text)
     return text.strip()
 
+# --- NOWE: usuwanie tekstów piosenek ---
+def remove_song_lines(text):
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        stripped = line.strip()
+        # usuń linie zawierające symbole muzyczne
+        if re.search(r"[♪♫♬♩]", stripped):
+            continue
+        # usuń linie zaczynające się od # (częste w liryce)
+        if stripped.startswith("#"):
+            continue
+        # usuń linie całkowicie pisane wielkimi literami w nawiasach (częste przy piosenkach)
+        if re.match(r"^\(.*\)$", stripped) and stripped.upper() == stripped:
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
+
+# --- NOWE: usuwanie prefixów typu "Mary: Tekst" ---
+def remove_speaker_prefix(text):
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        # usuń prefix typu IMIĘ:
+        line = re.sub(r"^[A-ZŁŚŻŹĆŃÓ][A-Za-zŁŚŻŹĆŃÓąćęłńóśźż\-']{1,20}:\s*", "", line)
+        # usuń prefix typu MAN:, WOMAN:, JOHN:
+        line = re.sub(r"^[A-Z ]{2,20}:\s*", "", line)
+        cleaned.append(line)
+    return "\n".join(cleaned)
+
 def wrap_line(line, max_len=MAX_LINE_LENGTH):
     words = line.split()
     if not words: return line
@@ -38,7 +68,16 @@ def fix_srt_format(text):
         lines = block.strip().split("\n")
         if len(lines) < 3: continue
         num, time = lines[0], lines[1]
-        body = wrap_line(clean_sdh(" ".join(lines[2:])))
+
+        body_text = " ".join(lines[2:])
+        body_text = clean_sdh(body_text)
+        body_text = remove_song_lines(body_text)
+        body_text = remove_speaker_prefix(body_text)
+
+        body = wrap_line(body_text.strip())
+        if not body.strip():
+            continue
+
         fixed.append("\n".join([num, time] + body.split("\n")))
     return "\n\n".join(fixed)
 
@@ -96,11 +135,9 @@ def run():
                     "Output ONLY SRT."
                 )
 
-
                 chunks = build_chunks(original)
                 translated_chunks, last_notified = [], -1
                 
-                # POPRAWKA BŁĘDU (wyciągnięcie re.sub poza f-string)
                 title = player.getVideoInfoTag().getTitle() or "Film"
                 safe_title = re.sub(r'[\\/*?:"<>|]', '', title).replace(' ', '_')
                 final_path = os.path.join(sub_dir, safe_title + "_TRANS_PL.srt")
