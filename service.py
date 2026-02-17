@@ -114,29 +114,45 @@ def process_subtitles(original_path):
         log(f"Processing error: {str(e)}")
 
 class GeminiTranslatorPlayer(xbmc.Player):
-    """The 'Sensor' that watches for subtitle events."""
+    def __init__(self):
+        super().__init__()
+        self.last_sub = ""
+
     def onPlayBackStarted(self):
-        log("Playback started. Waiting for subtitle track...")
-        xbmc.sleep(3000) 
-        self.trigger_check()
+        log("Playback started. Monitoring for subtitles...")
 
     def onSubtitleData(self, data):
-        # Triggers if the user manually changes subtitles during playback
+        # This is a native trigger for when subs are loaded
+        log("Subtitle data event detected.")
         self.trigger_check()
 
     def trigger_check(self):
-        sub_path = self.getSubtitles()
-        # Only start if it's an English/Original SRT and not already our RO version
-        if sub_path and sub_path.endswith('.srt') and "_RO.srt" not in sub_path:
-            process_subtitles(sub_path)
+        try:
+            sub_path = self.getSubtitles()
+            
+            # If path is found, it's an .srt, and we haven't processed THIS specific path yet
+            if sub_path and sub_path.endswith('.srt') and sub_path != self.last_sub:
+                if "_RO.srt" not in sub_path:
+                    log(f"New subtitle detected for translation: {sub_path}")
+                    self.last_sub = sub_path
+                    process_subtitles(sub_path)
+                else:
+                    log("Subtitles are already the Romanian version.")
+                    self.last_sub = sub_path
+        except Exception as e:
+            log(f"Error in trigger_check: {str(e)}")
 
 # --- Main Service Loop ---
 if __name__ == '__main__':
-    log("Service initialized and waiting for playback.")
+    log("Service active and monitoring.")
     player = GeminiTranslatorPlayer()
     monitor = xbmc.Monitor()
     
     while not monitor.abortRequested():
-        # Keeps the service alive
-        if monitor.waitForAbort(1):
+        # Polling: Every 5 seconds, check if a subtitle appeared 
+        # (This catches subs downloaded by a4kSubtitles after the movie starts)
+        if xbmc.Player().isPlaying():
+            player.trigger_check()
+            
+        if monitor.waitForAbort(5): # Check every 5 seconds
             break
