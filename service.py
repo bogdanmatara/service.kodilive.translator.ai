@@ -5,129 +5,120 @@ import xbmcvfs
 import os
 import requests
 import json
-import srt_utils 
+import re
 
 ADDON = xbmcaddon.Addon()
 
 def log(message):
     xbmc.log(f"[Gemini-RO-Translator] {message}", xbmc.LOGINFO)
 
+# --- Integrated srt_utils functions ---
+def clean_sdh(text):
+    text = re.sub(r'\[.*?\]', '', text)
+    text = re.sub(r'\(.*?\)', '', text)
+    text = re.sub(r'^[A-Z\s]+:\s*', '', text, flags=re.MULTILINE)
+    return text.strip()
+
+def split_srt(content, max_lines=50):
+    lines = content.splitlines(True)
+    chunks = []
+    current_chunk = []
+    line_count = 0
+    for line in lines:
+        current_chunk.append(line)
+        if line.strip() == "":
+            line_count += 1
+            if line_count >= max_lines:
+                chunks.append("".join(current_chunk))
+                current_chunk = []
+                line_count = 0
+    if current_chunk:
+        chunks.append("".join(current_chunk))
+    return chunks
+
+# --- Main Logic ---
 def get_save_path(original_path):
-    """Saves to your verified custom path on Android."""
-    # Using your verified path (case-sensitive for Android)
     custom_dir = "/storage/emulated/0/Download/sub"
-    
     if not xbmcvfs.exists(custom_dir):
         xbmcvfs.mkdir(custom_dir)
     
-    # Clean filename (removes .eng, .pl tags etc if present)
     base_name = os.path.basename(original_path)
     new_name = base_name.lower().replace('.eng.srt', '.srt').replace('.srt', '_RO.srt')
-    
-    target_path = os.path.join(custom_dir, new_name)
-    log(f"Target save path: {target_path}")
-    return target_path
+    return os.path.join(custom_dir, new_name)
 
-def translate_with_progress(text_block):
+def translate_chunk(text_block):
     api_key = ADDON.getSetting('api_key')
     temp_val = float(ADDON.getSetting('temp') or 0.1)
     
     if not api_key:
-        log("Error: API Key is missing in settings.")
+        log("Error: API Key is empty.")
         return None
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    
-    prompt = (
-        "Ești un traducător profesionist de subtitrări. Tradu următorul text SRT din Engleză în Română. "
-        "Păstrează codurile de timp și numerotarea intacte. "
-        "Folosește diacritice corecte (ș, ț, ă, î, â). Trimite DOAR textul tradus:\n\n"
-    )
+    prompt = "Tradu acest SRT din Engleză în Română. Păstrează timpul și formatul. Folosește diacritice. Trimite doar textul:\n\n"
 
     payload = {
         "contents": [{"parts": [{"text": prompt + text_block}]}],
-        "generationConfig": {"temperature": temp_val, "topP": 0.95}
+        "generationConfig": {"temperature": temp_val}
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=60)
-        response.raise_for_status()
+        response = requests.post(url, json=payload, timeout=30)
         return response.json()['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
         log(f"API Error: {str(e)}")
         return None
 
 def process_subtitles(original_path):
-    if not xbmcvfs.exists(original_path) or "_RO.srt" in original_path:
-        return
-
+    if "_RO.srt" in original_path: return
+    
     new_path = get_save_path(original_path)
-    log(f"Starting Translation: {original_path}")
+    log(f"Starting: {original_path} -> {new_path}")
 
     try:
         with xbmcvfs.File(original_path, 'r') as f:
             content = f.read()
 
-        clean_text = srt_utils.clean_sdh(content)
-        chunks = srt_utils.split_srt(clean_text, max_lines=100)
+        clean_text = clean_sdh(content)
+        chunks = split_srt(clean_text)
         total = len(chunks)
         translated_chunks = []
 
         for i, chunk in enumerate(chunks):
-            p = int(((i + 1) / total) * 100)
-            xbmc.executebuiltin(f'Notification(Gemini RO, Traducere: {p}%, 2000)')
-            
-            res = translate_with_progress(chunk)
-            if res:
-                translated_chunks.append(res)
-            else:
-                return
+            progress = int(((i + 1) / total) * 100)
+            xbmc.executebuiltin(f'Notification(Gemini RO, Traducere: {progress}%, 2000)')
+            res = translate_chunk(chunk)
+            if res: translated_chunks.append(res)
+            else: return
 
-        final_content = srt_utils.merge_srt(translated_chunks)
         with xbmcvfs.File(new_path, 'w') as f:
-            f.write(final_content)
+            f.write("\n".join(translated_chunks))
 
-        log("Successfully saved translated file.")
-        xbmc.executebuiltin('Notification(Gemini RO, Traducere Finalizată!, 5000)')
-        
-        xbmc.sleep(1000)
+        xbmc.executebuiltin('Notification(Gemini RO, Gata!, 5000)')
         xbmc.Player().setSubtitles(new_path)
-
     except Exception as e:
-        log(f"Process failed: {str(e)}")
+        log(f"Fail: {str(e)}")
 
-class GeminiTranslatorPlayer(xbmc.Player):
+class GeminiPlayer(xbmc.Player):
     def __init__(self):
         super().__init__()
-        self.last_sub = ""
+        self.last_path = ""
 
-    def trigger_check(self):
-        try:
-            # Check the active subtitle path
-            sub_path = self.getSubtitles()
-            
-            # If standard check fails, look for the a4k temp file specifically
-            if not sub_path and self.isPlaying():
-                # Some versions of Kodi on Android require a manual scan of the temp dir
-                pass 
-
-            if sub_path and sub_path != self.last_sub:
-                if sub_path.lower().endswith('.srt') and "_RO.srt" not in sub_path:
-                    log(f"Subtitle file found: {sub_path}")
-                    self.last_sub = sub_path
-                    process_subtitles(sub_path)
-                else:
-                    self.last_sub = sub_path
-        except Exception as e:
-            log(f"Monitoring error: {str(e)}")
+    def trigger(self):
+        path = self.getSubtitles()
+        if path and path != self.last_path and path.endswith('.srt') and "_RO.srt" not in path:
+            self.last_path = path
+            process_subtitles(path)
 
 if __name__ == '__main__':
-    log("Gemini Translator Service started.")
-    player = GeminiTranslatorPlayer()
-    monitor = xbmc.Monitor()
-    
-    while not monitor.abortRequested():
-        if xbmc.Player().isPlaying():
-            player.trigger_check()
-        if monitor.waitForAbort(5):
-            break
+    log("Gemini Translator Service BOOT")
+    try:
+        player = GeminiPlayer()
+        monitor = xbmc.Monitor()
+        while not monitor.abortRequested():
+            if xbmc.Player().isPlaying():
+                player.trigger()
+            if monitor.waitForAbort(5):
+                break
+    except Exception as e:
+        log(f"CRITICAL STARTUP ERROR: {str(e)}")
