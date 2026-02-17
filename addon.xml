@@ -4,7 +4,7 @@
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests" version="2.25.1"/>
     </requires>
-    <extension point="xbmc.service" library="service.py" start="login"/>
+    <extension point="xbmc.service" library="service.py" start="startup"/>
     <extension point="xbmc.addon.metadata">
         <summary lang="en_GB">Real-time SRT subtitle translator from English to Romanian using Gemini 2.0 Flash AI.</summary>
         <summary lang="ro_RO">Traducător de subtitrări SRT din engleză în română în timp real, folosind Gemini 2.0 Flash AI.</summary>
@@ -16,6 +16,7 @@
         </assets>
     </extension>
 </addon>
+
 
 
 
