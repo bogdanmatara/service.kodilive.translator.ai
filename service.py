@@ -17,7 +17,7 @@ def clean_sdh(text):
     text = re.sub(r'^[A-Z\s]+:\s*', '', text, flags=re.MULTILINE)
     return text.strip()
 
-def split_srt(content, max_lines=100):
+def split_srt(content, max_lines=50):
     lines = content.splitlines(True)
     chunks, current_chunk, count = [], [], 0
     for line in lines:
@@ -113,3 +113,4 @@ if __name__ == '__main__':
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
+
