@@ -16,8 +16,9 @@
                  type="slider" 
                  label="Temperature" 
                  default="0.15" 
-                 range="0,0.05,1.0" 
-                 option="float"/>
+                 control="slider"
+                 option="float"
+                 range="0.00,0.05,1.00" />
     
         <setting id="target_lang" 
                  type="text" 
@@ -26,6 +27,3 @@
                  enable="false" />
     </category>
 </settings>
-
-
-
