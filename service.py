@@ -50,31 +50,42 @@ def translate_chunk(text_block):
     except: return None
 
 def process_subtitles(original_path):
-    # 1. CLEAN THE FILENAME: Remove Kodi suffixes and virtual labels
+    # 1. LANGUAGE SHIELD: Stop if the file is already Romanian
+    # We check for common Kodi language tags and our own suffix
+    ignore_tags = ['_ro.', '.ro.', '.ron.', '.rum.', 'romanian', '_ro.srt']
+    path_lower = original_path.lower()
+    
+    if any(tag in path_lower for tag in ignore_tags):
+        log(f"Language Shield: {original_path} is already Romanian. Skipping.")
+        return
+
+    # 2. SANITIZE FILENAME: Remove virtual labels and Kodi junk
     base_name = os.path.basename(original_path)
-    if base_name.lower() in ['eng', 'eng.srt', 'default.srt']:
+    # Ignore virtual paths like 'eng' or 'default'
+    if base_name.lower() in ['eng', 'eng.srt', 'default.srt', 'rum', 'rum.srt']:
         log("Skipping virtual/invalid path.")
         return
 
-    # Strip out (External), (Selected), and other Kodi junk
+    # Strip out brackets like (External) or (Selected)
     clean_name = re.sub(r'\s*\(\w+\)', '', base_name)
+    # Ensure our standard suffix
     clean_name = clean_name.replace('.srt', '_RO.srt')
     
     save_dir = "/storage/emulated/0/Download/sub/"
     if not xbmcvfs.exists(save_dir): xbmcvfs.mkdir(save_dir)
     save_path = os.path.join(save_dir, clean_name)
 
-    # 2. CHECK IF ALREADY DONE
+    # 3. CHECK IF ALREADY DONE (Wife-proof persistence)
     if xbmcvfs.exists(save_path):
         log(f"Loading existing translation: {save_path}")
         xbmc.Player().setSubtitles(save_path)
         return
 
-    # 3. PROCEED ONLY IF VALID
+    # 4. PROCEED ONLY IF VALID CONTENT EXISTS
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
-        if not content or len(content) < 10:
-            log("File empty or too small, skipping.")
+        if not content or len(content) < 50: # Safety gate for 0-byte/junk files
+            log("Source file empty or too small. Skipping.")
             return
 
         chunks = split_srt(content) 
@@ -88,11 +99,11 @@ def process_subtitles(original_path):
 
         final_srt = clean_srt_content("\n".join(translated))
         
-        # Final safety: only write if we actually have translated text
-        if len(final_srt) > 10:
+        # 5. FINAL WRITE GATE
+        if len(final_srt) > 50:
             with xbmcvfs.File(save_path, 'w') as f: f.write(final_srt)
             xbmc.Player().setSubtitles(save_path)
-            log(f"SUCCESS: Saved to {save_path}")
+            log(f"SUCCESS: Romanian subtitles active: {save_path}")
     except Exception as e: log(f"Fail: {e}")
 
 class GeminiMonitor(xbmc.Monitor):
@@ -127,4 +138,5 @@ if __name__ == '__main__':
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
+
 
