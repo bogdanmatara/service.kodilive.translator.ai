@@ -1,29 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
     <category label="Configurare Traducere">
-        <setting id="api_key" 
-                 type="text" 
-                 label="Google Gemini API Key" 
-                 default="" />
-
-        <setting id="model" 
-                 type="enum" 
-                 label="Model AI" 
-                 values="gemini-2.0-flash|gemini-1.5-flash" 
-                 default="0" />
-        
-        <setting id="temp" 
-                 type="slider" 
-                 label="Temperature" 
-                 default="0.15" 
-                 control="slider"
-                 option="float"
-                 range="0.00,0.05,1.00" />
-    
-        <setting id="target_lang" 
-                 type="text" 
-                 label="Limba Țintă" 
-                 default="Romanian" 
-                 enable="false" />
+        <setting id="api_key" type="text" label="Google Gemini API Key" default="" />
+        <setting id="model" type="enum" label="Model AI" values="Gemini 2.0 Flash|Gemini 1.5 Flash|Gemini 2.5 Flash" default="0" />
+        <setting id="temp" type="slider" label="Temperature" default="0.15" control="slider" option="float" range="0.00,0.05,1.00" />
+        <setting id="target_lang" type="text" label="Limba Țintă" default="Romanian" enable="false" />
     </category>
 </settings>
