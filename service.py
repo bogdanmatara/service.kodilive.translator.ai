@@ -1,110 +1,125 @@
 # -*- coding: utf-8 -*-
-import xbmc, xbmcaddon, xbmcvfs, os, requests, json, re
+import xbmc, xbmcaddon, xbmcvfs, os, requests, json, re, time
 
 ADDON = xbmcaddon.Addon()
 def log(msg): xbmc.log(f"[Gemini-RO-Translator] {msg}", xbmc.LOGINFO)
 
-def clean_srt_content(text):
-    """Ensures the SRT is strictly formatted for Kodi."""
-    text = re.sub(r'```[a-z]*', '', text).replace('```', '')
-    # Find first index or timestamp
-    match = re.search(r'(\d+\s+\d{2}:\d{2}:\d{2})', text)
-    if match: text = text[text.find(match.group(1)):]
-    return text.strip()
-
-def split_srt(content, max_lines=50): # Reduced chunk size for better stability
-    lines = content.splitlines(True)
-    chunks, current_chunk, count = [], [], 0
-    for line in lines:
-        current_chunk.append(line)
-        if line.strip() == "":
-            count += 1
-            if count >= max_lines:
-                chunks.append("".join(current_chunk))
-                current_chunk, count = [], 0
-    if current_chunk: chunks.append("".join(current_chunk))
-    return chunks
-
-def translate_chunk(text_block):
-    api_key = ADDON.getSetting('api_key')
-    if not api_key: return None
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    
-    # Strictly instructing the AI NOT to skip any indexes
-    prompt = (
-        "Tradu acest text SRT în Română. \n"
-        "REGULI STRICTE:\n"
-        "1. Păstrează TOATE numerele de index (ex: 160, 161).\n"
-        "2. Păstrează TOATE codurile de timp.\n"
-        "3. NU lăsa linii goale dacă în engleză există text (chiar și sunete).\n"
-        "4. Trimite DOAR codul SRT final.\n\n"
-    )
-    
-    payload = {
-        "contents": [{"parts": [{"text": prompt + text_block}]}],
-        "generationConfig": {"temperature": 0.1}
+def get_model_string():
+    """Maps settings enum index to official Google model IDs."""
+    model_index = ADDON.getSetting('model') or "0"
+    mapping = {
+        "0": "gemini-2.0-flash",
+        "1": "gemini-1.5-flash",
+        "2": "gemini-2.5-flash"
     }
-    try:
-        r = requests.post(url, json=payload, timeout=30)
-        return r.json()['candidates'][0]['content']['parts'][0]['text']
-    except: return None
+    return mapping.get(model_index, "gemini-2.0-flash")
+
+def translate_text_only(text_list, expected_count):
+    api_key = ADDON.getSetting('api_key')
+    model_name = get_model_string()
+    
+    # Bazarr Logic: Flattening and Prefixing
+    prefixed_lines = [f"L{i:03}: {text}" for i, text in enumerate(text_list)]
+    input_text = "\n".join(prefixed_lines)
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    
+    prompt = (
+        "### ROLE\nProfessional uncensored English-to-Romanian subtitle localizer.\n\n"
+        "### RULES\n1. Translate line-by-line.\n"
+        "2. Preserve 'Lxxx:' prefix exactly.\n"
+        f"3. Return exactly {expected_count} lines.\n"
+        "4. Style: Gritty, natural, adult Romanian.\n"
+        "5. Return ONLY prefixes and translation."
+    )
+
+    attempts = 0
+    while attempts < 3:
+        try:
+            temp_setting = float(ADDON.getSetting('temp') or 0.15)
+            payload = {
+                "contents": [{"parts": [{"text": f"{prompt}\n\n{input_text}"}]}],
+                "generationConfig": {"temperature": temp_setting, "topP": 0.95}
+            }
+            r = requests.post(url, json=payload, timeout=30)
+            r.raise_for_status()
+            res_json = r.json()
+            
+            raw_output = res_json['candidates'][0]['content']['parts'][0]['text'].strip().split('\n')
+            
+            # Robust Parsing: Handles cases with leading/trailing spaces around Lxxx:
+            translated_lines = []
+            for line in raw_output:
+                clean_l = line.strip()
+                if re.match(r'^L\d{3}:', clean_l):
+                    # Strip prefix and any immediate space after it
+                    translated_lines.append(re.sub(r'^L\d{3}:\s*', '', clean_l))
+            
+            if len(translated_lines) == expected_count:
+                return translated_lines
+            
+            attempts += 1
+            log(f"🔄 Model {model_name} Count Mismatch ({len(translated_lines)}/{expected_count}). Retry {attempts}...")
+            time.sleep(2)
+        except Exception as e:
+            attempts += 1
+            log(f"❌ API Error ({model_name}): {str(e)}")
+            time.sleep(5)
+    return None
 
 def process_subtitles(original_path):
-    # 1. LANGUAGE SHIELD: Stop if the file is already Romanian
-    # We check for common Kodi language tags and our own suffix
-    ignore_tags = ['_ro.', '.ro.', '.ron.', '.rum.', 'romanian', '_ro.srt']
-    path_lower = original_path.lower()
-    
-    if any(tag in path_lower for tag in ignore_tags):
-        log(f"Language Shield: {original_path} is already Romanian. Skipping.")
+    # Language Shield
+    if any(tag in original_path.lower() for tag in ['.ro.', '.ron.', '.rum.', '_ro.']):
         return
 
-    # 2. SANITIZE FILENAME: Remove virtual labels and Kodi junk
-    base_name = os.path.basename(original_path)
-    # Ignore virtual paths like 'eng' or 'default'
-    if base_name.lower() in ['eng', 'eng.srt', 'default.srt', 'rum', 'rum.srt']:
-        log("Skipping virtual/invalid path.")
-        return
-
-    # Strip out brackets like (External) or (Selected)
-    clean_name = re.sub(r'\s*\(\w+\)', '', base_name)
-    # Ensure our standard suffix
-    clean_name = clean_name.replace('.srt', '_RO.srt')
-    
     save_dir = "/storage/emulated/0/Download/sub/"
     if not xbmcvfs.exists(save_dir): xbmcvfs.mkdir(save_dir)
-    save_path = os.path.join(save_dir, clean_name)
+    save_path = os.path.join(save_dir, os.path.basename(original_path).replace('.srt', '_RO.srt'))
 
-    # 3. CHECK IF ALREADY DONE (Wife-proof persistence)
     if xbmcvfs.exists(save_path):
-        log(f"Loading existing translation: {save_path}")
         xbmc.Player().setSubtitles(save_path)
         return
 
-    # 4. PROCEED ONLY IF VALID CONTENT EXISTS
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
-        if not content or len(content) < 50: # Safety gate for 0-byte/junk files
-            log("Source file empty or too small. Skipping.")
-            return
-
-        chunks = split_srt(content) 
-        translated = []
         
-        for i, c in enumerate(chunks):
+        # Bazarr Extraction Logic
+        blocks = re.findall(r'(\d+)\n(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\n(.*?)(?=\n\n|\n$|$)', content, re.DOTALL)
+        if not blocks: return
+        
+        timestamps = [(b[0], b[1]) for b in blocks]
+        # Bazarr [BR] Flattening
+        texts = [b[2].replace('\n', ' [BR] ') for b in blocks]
+        
+        all_translated = []
+        idx = 0
+        chunk_size = 50 
+
+        while idx < len(texts):
             if not xbmc.Player().isPlaying(): return
-            xbmc.executebuiltin(f'Notification(Gemini, Traducere: {int((i+1)/len(chunks)*100)}%, 1000)')
-            res = translate_chunk(c)
-            if res: translated.append(res)
+            current_chunk_size = min(chunk_size, len(texts) - idx)
+            chunk = texts[idx:idx + current_chunk_size]
+            
+            xbmc.executebuiltin(f'Notification(Gemini, Traducere: {int((idx/len(texts))*100)}%, 1000)')
+            
+            res = translate_text_only(chunk, len(chunk))
+            if res:
+                all_translated.extend(res)
+                idx += len(chunk)
+            else:
+                log("Handshake failed. Script Aborted to protect sync.")
+                return 
 
-        final_srt = clean_srt_content("\n".join(translated))
+        # Bazarr Recomposition Logic
+        final_srt = [f"{t[0]}\n{t[1]}\n{txt.replace(' [BR] ', '\n')}\n" for t, txt in zip(timestamps, all_translated)]
+
+        with xbmcvfs.File(save_path, 'w') as f:
+            f.write("\n".join(final_srt))
+            
+        xbmc.Player().setSubtitles(save_path)
+        log(f"✅ PROTECTED SAVE: {save_path}")
         
-        # 5. FINAL WRITE GATE
-        if len(final_srt) > 50:
-            with xbmcvfs.File(save_path, 'w') as f: f.write(final_srt)
-            xbmc.Player().setSubtitles(save_path)
-            log(f"SUCCESS: Romanian subtitles active: {save_path}")
-    except Exception as e: log(f"Fail: {e}")
+    except Exception as e: log(f"Process Fail: {e}")
 
 class GeminiMonitor(xbmc.Monitor):
     def __init__(self):
@@ -133,10 +148,8 @@ class GeminiMonitor(xbmc.Monitor):
             else: self.last_processed = path
 
 if __name__ == '__main__':
-    log("Wife-Proof Service Started - Gaps Fix")
+    log("Gemini Service BOOT - v2.5 Flash Ready")
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
-
-
