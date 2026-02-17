@@ -7,6 +7,8 @@ import requests
 import json
 import re
 
+xbmc.log("[Gemini-RO-Translator] SCRIPT LOADED", xbmc.LOGINFO)
+
 ADDON = xbmcaddon.Addon()
 
 def log(message):
@@ -122,3 +124,4 @@ if __name__ == '__main__':
                 break
     except Exception as e:
         log(f"CRITICAL STARTUP ERROR: {str(e)}")
+
