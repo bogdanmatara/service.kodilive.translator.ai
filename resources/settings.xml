@@ -15,7 +15,7 @@
         <setting id="temp" 
                  type="slider" 
                  label="Temperature" 
-                 default="0.1" 
+                 default="0.15" 
                  range="0,0.05,1.0" 
                  option="float"/>
     
@@ -26,5 +26,6 @@
                  enable="false" />
     </category>
 </settings>
+
 
 
