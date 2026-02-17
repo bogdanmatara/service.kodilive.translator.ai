@@ -2,8 +2,14 @@
 import xbmc, xbmcaddon, xbmcvfs, os, requests, json, re
 
 ADDON = xbmcaddon.Addon()
-
 def log(msg): xbmc.log(f"[Gemini-RO-Translator] {msg}", xbmc.LOGINFO)
+
+def clean_srt_content(text):
+    text = re.sub(r'```[a-z]*', '', text).replace('```', '')
+    match = re.search(r'(\d+\s+\d{2}:\d{2}:\d{2})', text)
+    if match: text = text[text.find(match.group(1)):]
+    if not text.strip().startswith('1'): text = "1\n" + text
+    return text.strip()
 
 def clean_sdh(text):
     text = re.sub(r'\[.*?\]', '', text)
@@ -29,7 +35,7 @@ def translate_chunk(text_block):
     if not api_key: return None
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     payload = {
-        "contents": [{"parts": [{"text": "Tradu acest SRT în Română (fără explicatii, păstrează timpul):\n\n" + text_block}]}],
+        "contents": [{"parts": [{"text": "Tradu acest SRT în Română. Păstrează timpul. Trimite DOAR codul SRT:\n\n" + text_block}]}],
         "generationConfig": {"temperature": 0.1}
     }
     try:
@@ -38,23 +44,38 @@ def translate_chunk(text_block):
     except: return None
 
 def process_subtitles(original_path):
-    # This is where the magic happens
-    save_path = "/storage/emulated/0/Download/sub/" + os.path.basename(original_path).replace('.srt', '_RO.srt')
-    if not xbmcvfs.exists("/storage/emulated/0/Download/sub/"): xbmcvfs.mkdir("/storage/emulated/0/Download/sub/")
+    save_dir = "/storage/emulated/0/Download/sub/"
+    if not xbmcvfs.exists(save_dir): xbmcvfs.mkdir(save_dir)
+    
+    filename = os.path.basename(original_path).replace('.srt', '_RO.srt')
+    save_path = os.path.join(save_dir, filename)
+
+    # WIFE-PROOF: If we already translated THIS specific file, just load it!
+    if xbmcvfs.exists(save_path):
+        log(f"Already have translation: {save_path}. Loading...")
+        xbmc.Player().setSubtitles(save_path)
+        return
 
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
         chunks = split_srt(clean_sdh(content))
         translated = []
+        
         for i, c in enumerate(chunks):
-            # Discreet notification so she knows it's working
-            xbmc.executebuiltin(f'Notification(Gemini, Traducere Automată: {int((i+1)/len(chunks)*100)}%, 1500)')
+            # Abort if movie stopped
+            if not xbmc.Player().isPlaying(): 
+                log("Playback stopped. Aborting translation.")
+                return
+                
+            xbmc.executebuiltin(f'Notification(Gemini, Traducere: {int((i+1)/len(chunks)*100)}%, 1000)')
             res = translate_chunk(c)
             if res: translated.append(res)
         
-        with xbmcvfs.File(save_path, 'w') as f: f.write("\n".join(translated))
+        final_srt = clean_srt_content("\n".join(translated))
+        with xbmcvfs.File(save_path, 'w') as f: f.write(final_srt)
+        
         xbmc.Player().setSubtitles(save_path)
-        log("Auto-translation complete and loaded.")
+        log("SUCCESS: Auto-translation loaded.")
     except Exception as e: log(f"Fail: {e}")
 
 class GeminiMonitor(xbmc.Monitor):
@@ -62,21 +83,23 @@ class GeminiMonitor(xbmc.Monitor):
         super().__init__()
         self.last_processed = ""
 
+    def onPlayBackStopped(self):
+        self.last_processed = "" # Reset memory so next movie triggers fresh
+        log("Playback stopped - memory cleared.")
+
     def check_for_subs(self):
-        # 1. Try to get path from Kodi Player
+        if not xbmc.Player().isPlaying(): return
+
         path = xbmc.Player().getSubtitles()
-        
-        # 2. If Kodi is hiding the path (common on Shield), scan the a4k temp folder directly
         if not path:
             temp_dir = "special://home/userdata/addon_data/service.subtitles.a4ksubtitles/temp/"
             if xbmcvfs.exists(temp_dir):
-                dirs, files = xbmcvfs.listdir(temp_dir)
+                _, files = xbmcvfs.listdir(temp_dir)
                 for f in files:
                     if f.lower().endswith('.srt') and "_ro.srt" not in f.lower():
                         path = os.path.join(temp_dir, f)
                         break
         
-        # 3. If we found a path and it's new, translate it
         if path and path != self.last_processed:
             if "_RO.srt" not in path:
                 self.last_processed = path
@@ -85,9 +108,8 @@ class GeminiMonitor(xbmc.Monitor):
                 self.last_processed = path
 
 if __name__ == '__main__':
-    log("Wife-Proof Gemini Service Started")
+    log("Wife-Proof Service Started v2")
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
-        if xbmc.Player().isPlaying():
-            monitor.check_for_subs()
+        monitor.check_for_subs()
         if monitor.waitForAbort(10): break
