@@ -110,21 +110,30 @@ class GeminiMonitor(xbmc.Monitor):
 
     def check_for_subs(self):
         if not xbmc.Player().isPlaying(): return
+        
+        # 1. Încearcă să obțină calea de la player
         path = xbmc.Player().getSubtitles()
         
-        # BAZARR LOGIC: If path is empty (common with WebDAV), scan local temp
+        # 2. LOGICĂ SPECIALĂ NZBDAV: Dacă player-ul dă o cale de rețea sau goală
+        # verificăm direct folderul local unde a4k face backup-ul
         if not path or "dav://" in path:
             temp_dir = "special://home/userdata/addon_data/service.subtitles.a4ksubtitles/temp/"
             if xbmcvfs.exists(temp_dir):
                 _, files = xbmcvfs.listdir(temp_dir)
-                for f in sorted(files, reverse=True):
-                    if f.lower().endswith('.srt') and "_ro.srt" not in f.lower():
-                        path = os.path.join(temp_dir, f)
-                        break
+                # Sortăm descrescător pentru a lua cel mai recent fișier descărcat
+                srt_files = [f for f in files if f.lower().endswith('.srt') and "_ro.srt" not in f.lower()]
+                if srt_files:
+                    srt_files.sort(key=lambda x: xbmcvfs.Stat(os.path.join(temp_dir, x)).st_mtime(), reverse=True)
+                    path = os.path.join(temp_dir, srt_files[0])
         
         if path and path != self.last_processed:
-            self.last_processed = path
-            process_subtitles(path)
+            # Verificăm să nu fie deja tradusă (Language Shield)
+            if "_ro.srt" not in path.lower():
+                self.last_processed = path
+                process_subtitles(path)
+            else:
+                self.last_processed = path
+
 
 if __name__ == '__main__':
     log("Gemini Service BOOT - Protected DAV Mode")
@@ -132,3 +141,4 @@ if __name__ == '__main__':
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
+
