@@ -5,7 +5,7 @@ ADDON = xbmcaddon.Addon()
 def log(msg): xbmc.log(f"[Gemini-RO-Translator] {msg}", xbmc.LOGINFO)
 
 def get_model_string():
-    """Maps the settings enum index to the actual Gemini model string."""
+    """Maps settings enum index to official Google model IDs."""
     model_index = ADDON.getSetting('model') or "0"
     mapping = {
         "0": "gemini-2.0-flash",
@@ -18,7 +18,7 @@ def translate_text_only(text_list, expected_count):
     api_key = ADDON.getSetting('api_key')
     model_name = get_model_string()
     
-    # BAZARR Logic: Prefixing to keep Gemini synced
+    # Bazarr Logic: Prefixing to maintain 1:1 line mapping
     prefixed_lines = [f"L{i:03}: {text}" for i, text in enumerate(text_list)]
     input_text = "\n".join(prefixed_lines)
     
@@ -44,6 +44,7 @@ def translate_text_only(text_list, expected_count):
             r = requests.post(url, json=payload, timeout=30)
             res_json = r.json()
             
+            # Extract lines and strip prefixes
             raw_output = res_json['candidates'][0]['content']['parts'][0]['text'].strip().split('\n')
             translated_lines = [re.sub(r'^L\d{3}:\s*', '', l.strip()) for l in raw_output if re.match(r'^L\d{3}:', l.strip())]
             
@@ -51,32 +52,36 @@ def translate_text_only(text_list, expected_count):
                 return translated_lines
             
             attempts += 1
-            log(f"🔄 Attempt {attempts} mismatch for {model_name}. Retrying...")
+            log(f"🔄 Count mismatch ({len(translated_lines)}/{expected_count}). Retry {attempts}...")
             time.sleep(2)
         except Exception as e:
             attempts += 1
-            log(f"❌ API Error ({model_name}): {str(e)}")
+            log(f"❌ API Error: {str(e)}")
             time.sleep(5)
     return None
 
 def process_subtitles(original_path):
-    # Rule A: Language Shield
+    # Rule A: Ignore if already Romanian
     if any(tag in original_path.lower() for tag in ['.ro.', '.ron.', '.rum.', '_ro.']): return
+    
+    # Rule B: Ignore virtual Kodi labels
     if os.path.basename(original_path).lower() in ['eng', 'eng.srt', 'rum', 'rum.srt']: return
 
-    # Get local save folder from settings
     save_dir = ADDON.getSetting('sub_folder')
-    if not save_dir:
-        save_dir = "special://home/Download/sub/"
-        
-    if not xbmcvfs.exists(save_dir): xbmcvfs.mkdir(save_dir)
-    save_path = os.path.join(save_dir, os.path.basename(original_path).replace('.srt', '_RO.srt'))
+    if not save_dir or not xbmcvfs.exists(save_dir):
+        log("Error: Custom sub_folder not set or not accessible.")
+        return
 
-    # Persistence: Don't translate if already exists
+    # Prepare output path
+    clean_name = os.path.basename(original_path).replace('.srt', '_RO.srt')
+    save_path = os.path.join(save_dir, clean_name)
+
     if xbmcvfs.exists(save_path):
+        log(f"Loading existing translation: {save_path}")
         xbmc.Player().setSubtitles(save_path)
         return
 
+    log(f"Starting Gemini translation for: {original_path}")
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
         
@@ -85,7 +90,7 @@ def process_subtitles(original_path):
         if not blocks: return
         
         timestamps = [(b[0], b[1]) for b in blocks]
-        # BAZARR Logic: [BR] Flattening for multi-line subs
+        # BAZARR Logic: [BR] Flattening
         texts = [b[2].replace('\n', ' [BR] ') for b in blocks]
         
         all_translated = []
@@ -103,17 +108,17 @@ def process_subtitles(original_path):
             if res:
                 all_translated.extend(res)
                 idx += len(chunk)
-            else: 
-                log("Handshake failed. Sync protection aborted.")
+            else:
+                log("Critical mismatch error. Aborting translation.")
                 return 
 
-        # BAZARR Logic: Recomposition with BR -> Newline
+        # BAZARR Logic: Recomposition
         final_srt = [f"{t[0]}\n{t[1]}\n{txt.replace(' [BR] ', '\n')}\n" for t, txt in zip(timestamps, all_translated)]
 
         with xbmcvfs.File(save_path, 'w') as f: f.write("\n".join(final_srt))
             
         xbmc.Player().setSubtitles(save_path)
-        log(f"✅ PROTECTED LOCAL SAVE: {save_path}")
+        log(f"✅ SUCCESS: Romanian sub active.")
         
     except Exception as e: log(f"Process Fail: {e}")
 
@@ -128,37 +133,29 @@ class GeminiMonitor(xbmc.Monitor):
     def check_for_subs(self):
         if not xbmc.Player().isPlaying(): return
         
+        # MONITOR ONLY THE CUSTOM FOLDER
         custom_dir = ADDON.getSetting('sub_folder')
+        if not custom_dir or not xbmcvfs.exists(custom_dir): return
+
+        _, files = xbmcvfs.listdir(custom_dir)
         
-        # We watch BOTH the user-defined folder and a4k's internal temp
-        # This solves the "Hidden Path" issue on Android 11+
-        search_locations = [
-            custom_dir,
-            "special://home/userdata/addon_data/service.subtitles.a4ksubtitles/temp/"
-        ]
+        # Find English .srt files that are NOT our Romanian version
+        valid_files = [f for f in files if f.lower().endswith('.srt') and "_ro.srt" not in f.lower()]
         
-        for loc in search_locations:
-            if not loc or not xbmcvfs.exists(loc): continue
+        if valid_files:
+            # Sort by modification time (Newest first)
+            full_paths = [os.path.join(custom_dir, f) for f in valid_files]
+            full_paths.sort(key=lambda x: xbmcvfs.Stat(x).st_mtime(), reverse=True)
+            newest_path = full_paths[0]
             
-            _, files = xbmcvfs.listdir(loc)
-            new_subs = [f for f in files if f.lower().endswith('.srt') and "_ro.srt" not in f.lower()]
-            
-            if new_subs:
-                # Get the most recent file to ensure we translate the current movie
-                full_paths = [os.path.join(loc, f) for f in new_subs]
-                full_paths.sort(key=lambda x: xbmcvfs.Stat(x).st_mtime(), reverse=True)
-                newest_path = full_paths[0]
-                
-                if newest_path != self.last_processed:
-                    # Minimum size check to avoid empty files
-                    if xbmcvfs.Stat(newest_path).st_size() > 100:
-                        log(f"New subtitle detected in: {loc}")
-                        self.last_processed = newest_path
-                        process_subtitles(newest_path)
-                        return
+            # Trigger only if it's a new file and has content
+            if newest_path != self.last_processed:
+                if xbmcvfs.Stat(newest_path).st_size() > 500:
+                    self.last_processed = newest_path
+                    process_subtitles(newest_path)
 
 if __name__ == '__main__':
-    log("Gemini Service BOOT - Final Wife-Proof Version")
+    log("Gemini Service BOOT - Strict Custom Folder Mode")
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
         monitor.check_for_subs()
