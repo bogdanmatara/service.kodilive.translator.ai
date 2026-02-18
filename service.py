@@ -127,31 +127,17 @@ class GeminiMonitor(xbmc.Monitor):
                     process_subtitles(newest_path)
 
 if __name__ == '__main__':
+    # Using a simple argv check first
     import sys
-    # On some systems, manual launch has no extra argv, but the service launch 
-    # happens via the xbmc.service extension point. 
-    # We check if we are running as a service or a standalone script.
     
-    is_manual = False
-    try:
-        # If xbmc.GUI is available and we aren't being called by the service manager
-        if not xbmc.getCondVisibility('Window.IsActive(startup)'):
-            is_manual = True
-    except:
-        pass
-
-    # Force manual if arguments exist or if the service loop hasn't been requested
-    if len(sys.argv) > 1 or is_manual:
-        log("Manual Launch Detected - Opening Settings")
+    # If launched from the Program menu
+    if len(sys.argv) > 1:
         ADDON.openSettings()
     else:
-        log("Background Service Initializing")
+        # Background service logic
         monitor = GeminiMonitor()
+        log("Translatarr Service Started")
         while not monitor.abortRequested():
             monitor.check_for_subs()
             if monitor.waitForAbort(10):
                 break
-
-
-
-
