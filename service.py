@@ -127,10 +127,20 @@ class GeminiMonitor(xbmc.Monitor):
                     process_subtitles(newest_path)
 
 if __name__ == '__main__':
-    log("Gemini Service Starting...")
-    monitor = GeminiMonitor()
-    while not monitor.abortRequested():
-        monitor.check_for_subs()
-        if monitor.waitForAbort(10): break
+    # Check if the script was launched manually (as a Program)
+    # sys.argv is populated when you click the icon
+    import sys
+    
+    if len(sys.argv) > 1 or "service.py" in sys.argv[0]:
+        # User clicked the icon in Programs
+        log("Manual launch detected - Opening Settings")
+        ADDON.openSettings()
+    else:
+        # Launched by Kodi as a background service
+        log("Service launch detected - Starting Monitor")
+        monitor = GeminiMonitor()
+        while not monitor.abortRequested():
+            monitor.check_for_subs()
+            if monitor.waitForAbort(10): break
 
 
