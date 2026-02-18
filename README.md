@@ -1,2 +1,3 @@
 Gemini En 2 Ro tranlation
-save srt to custom from kodi settings
+Set your srt download to custom from kodi settings & from addon setting (they meed to match)
+
