@@ -6,8 +6,9 @@
         <setting id="temp" type="slider" label="Temperature" default="0.15" control="slider" option="float" range="0.00,0.05,1.00" />
         <setting id="sub_folder" type="folder" label="Custom Srt Save Location (Local)" default="/storage/emulated/0/Download/sub/" />
         <setting id="target_lang" type="text" label="Target Language" default="Romanian" enable="false" />
-        <setting id="show_stats" type="boolean" label="Afișează Caseta de Statistici la final" default="true" />
+        <setting id="show_stats" type="boolean" label="Show final stats" default="true" />
     </category>
 </settings>
+
 
 
