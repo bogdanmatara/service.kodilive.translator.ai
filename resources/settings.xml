@@ -1,42 +1,42 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings version="1">
-    <section id="service.translatarr">
-        <category label="Translatarr Config">
-            <group id="1">
-                <setting id="api_key" type="string" label="Google Gemini API Key">
-                    <level>0</level>
-                    <default></default>
-                    <control type="edit" format="string" />
-                </setting>
-                <setting id="model" type="integer" label="Model AI">
-                    <level>0</level>
-                    <default>0</default>
-                    <control type="list" format="integer">
-                        <choices>
-                            <choice>Gemini 2.0 Flash</choice>
-                            <choice>Gemini 1.5 Flash</choice>
-                            <choice>Gemini 2.5 Flash</choice>
-                        </choices>
-                    </control>
-                </setting>
-                <setting id="temp" type="number" label="Temperature">
-                    <level>0</level>
-                    <default>0.15</default>
-                    <control type="slider" format="float" range="0.00,0.01,1.00" />
-                </setting>
-                <setting id="sub_folder" type="string" label="Srt Save Location">
-                    <level>0</level>
-                    <default>/storage/emulated/0/Download/sub/</default>
-                    <control type="button" format="string">
-                        <setting_type>dir</setting_type>
-                    </control>
-                </setting>
-                <setting id="show_stats" type="boolean" label="Display Translation Stats (Pop-up)">
-                    <level>0</level>
-                    <default>true</default>
-                    <control type="toggle" />
-                </setting>
-            </group>
-        </category>
-    </section>
+  <section id="service.translatarr">
+    <category label="Translatarr Config">
+        <group id="1">
+            <setting id="api_key" type="string" label="Google Gemini API Key">
+                <level>0</level>
+                <default></default>
+                <control type="edit" format="string" />
+            </setting>
+            <setting id="model" type="integer" label="Model AI">
+                <level>0</level>
+                <default>0</default>
+                <control type="list" format="integer">
+                    <choices>
+                        <choice>Gemini 2.0 Flash</choice>
+                        <choice>Gemini 1.5 Flash</choice>
+                        <choice>Gemini 2.5 Flash</choice>
+                    </choices>
+                </control>
+            </setting>
+            <setting id="temp" type="number" label="Temperature">
+                <level>0</level>
+                <default>0.15</default>
+                <control type="slider" format="float" range="0.00,0.01,1.00" />
+            </setting>
+            <setting id="sub_folder" type="string" label="Srt Save Location">
+                <level>0</level>
+                <default>/storage/emulated/0/Download/sub/</default>
+                <control type="button" format="string">
+                    <setting_type>dir</setting_type>
+                </control>
+            </setting>
+            <setting id="show_stats" type="boolean" label="Display Translation Stats">
+                <level>0</level>
+                <default>true</default>
+                <control type="toggle" />
+            </setting>
+        </group>
+    </category>
+  </section>
 </settings>
