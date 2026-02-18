@@ -127,17 +127,27 @@ class GeminiMonitor(xbmc.Monitor):
                     process_subtitles(newest_path)
 
 if __name__ == '__main__':
-    # Using a simple argv check first
     import sys
-    
-    # If launched from the Program menu
-    if len(sys.argv) > 1:
-        ADDON.openSettings()
-    else:
-        # Background service logic
-        monitor = GeminiMonitor()
-        log("Translatarr Service Started")
-        while not monitor.abortRequested():
-            monitor.check_for_subs()
-            if monitor.waitForAbort(10):
-                break
+    # Kodi passes at least the script path, so len is 1. 
+    # To detect a manual click vs a background service start:
+    try:
+        # Check if we are running in the 'main' execution thread (the click)
+        # vs the service thread.
+        if "service.py" in sys.argv[0] and len(sys.argv) == 1:
+            log("Manual Launch: Opening Settings")
+            ADDON.openSettings()
+        elif len(sys.argv) > 1:
+            # Handle cases where arguments are passed
+            ADDON.openSettings()
+    except:
+        pass
+
+    # The background service always runs regardless
+    log("Background Service Initialized")
+    monitor = GeminiMonitor()
+    while not monitor.abortRequested():
+        monitor.check_for_subs()
+        if monitor.waitForAbort(10):
+            break
+
+
