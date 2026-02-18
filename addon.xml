@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="service.kodilive.translator.ai" name="Gemini RO Subtitle Translator AI" version="2.1.17" provider-name="Bogdan Matara">
+<addon id="service.gemini.translator" name="Gemini Subtitle Translator" version="2.5.1" provider-name="Gemini">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests" version="2.25.1"/>
     </requires>
-    <extension point="xbmc.service" library="service.py" start="startup"/>
+    <extension point="xbmc.python.script" library="service.py">
+        <provides>executable</provides>
+    </extension>
+    <extension point="xbmc.python.service" library="service.py" />
     <extension point="xbmc.addon.metadata">
-        <summary lang="en_GB">Real-time SRT subtitle translator from English to Romanian using Gemini 2.0 Flash AI.</summary>
-        <summary lang="ro_RO">Traducător de subtitrări SRT din engleză în română în timp real, folosind Gemini 2.0 Flash AI.</summary>
-        <description lang="ro_RO">Detectează automat subtitrările în limba engleză, le traduce în română folosind Google Gemini, normalizează liniile și elimină descrierile SDH. Versiune optimizată pentru Google TV și Android TV.</description>
+        <summary lang="en_GB">AI Subtitle Translator using Gemini</summary>
+        <description lang="en_GB">Automatically translates English subtitles to Your Language using Google Gemini Flash models.</description>
         <platform>all</platform>
         <license>GPL-2.0-only</license>
         <assets>
@@ -16,22 +18,3 @@
         </assets>
     </extension>
 </addon>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
