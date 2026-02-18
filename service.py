@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import xbmc, xbmcaddon, xbmcvfs, xbmcgui, os, requests, json, re, time
 
-ADDON = xbmcaddon.Addon()
+# Updated for Translatarr
+ADDON = xbmcaddon.Addon('service.translatarr')
 DIALOG = xbmcgui.Dialog()
 
 def log(msg): xbmc.log(f"[Gemini-RO-Translator] {msg}", xbmc.LOGINFO)
@@ -130,3 +131,4 @@ if __name__ == '__main__':
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
+
