@@ -83,7 +83,8 @@ def process_subtitles(original_path):
         duration = round(time.time() - start_time, 2)
 
         # --- THE CASSETTE BOX (Statistics) ---
-        if ADDON.getSetting('show_stats') == 'true':
+        if ADDON.getSettingBool('show_stats'):
+
             stats_msg = (
                 "✅ TRANSLATION FINISHED\n"
                 "----------------------------------\n"
@@ -131,4 +132,5 @@ if __name__ == '__main__':
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
+
 
