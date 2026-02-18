@@ -126,25 +126,32 @@ class GeminiMonitor(xbmc.Monitor):
                     self.last_processed = newest_path
                     process_subtitles(newest_path)
 
-# ... (Keep all your existing translation functions and GeminiMonitor class above) ...
-
 if __name__ == '__main__':
     import sys
-    # If len(sys.argv) > 1, it means the user clicked the icon in Program Addons
-    if len(sys.argv) > 1:
-        log("Manual Launch: Opening Settings and Info")
-        # Optional: Show your message from the old default.py
-        # DIALOG.ok("Translatarr", "Acest serviciu rulează în fundal și traduce automat subtitrările.")
+    # On some systems, manual launch has no extra argv, but the service launch 
+    # happens via the xbmc.service extension point. 
+    # We check if we are running as a service or a standalone script.
+    
+    is_manual = False
+    try:
+        # If xbmc.GUI is available and we aren't being called by the service manager
+        if not xbmc.getCondVisibility('Window.IsActive(startup)'):
+            is_manual = True
+    except:
+        pass
+
+    # Force manual if arguments exist or if the service loop hasn't been requested
+    if len(sys.argv) > 1 or is_manual:
+        log("Manual Launch Detected - Opening Settings")
         ADDON.openSettings()
     else:
-        # No arguments means Kodi started it as a background service
-        log("Service Launch: Starting Monitor")
+        log("Background Service Initializing")
         monitor = GeminiMonitor()
         while not monitor.abortRequested():
             monitor.check_for_subs()
-            # Check every 10 seconds
             if monitor.waitForAbort(10):
                 break
+
 
 
 
