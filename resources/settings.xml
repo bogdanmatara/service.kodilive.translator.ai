@@ -7,3 +7,8 @@
         <setting id="target_lang" type="text" label="Limba Țintă" default="Romanian" enable="false" />
     </category>
 </settings>
+<setting id="sub_folder" 
+         type="folder" 
+         label="Locație Salvare Subtitrări (Local)" 
+         default="/storage/emulated/0/Download/sub/" />
+
