@@ -18,6 +18,13 @@ def get_model_string():
 def translate_text_only(text_list, expected_count):
     api_key = ADDON.getSetting('api_key')
     model_name = get_model_string()
+    
+    # FETCH TEMPERATURE HERE
+    try:
+        temp_val = float(ADDON.getSetting('temp') or 0.15)
+    except:
+        temp_val = 0.15
+
     prefixed_lines = [f"L{i:03}: {text}" for i, text in enumerate(text_list)]
     input_text = "\n".join(prefixed_lines)
     
@@ -29,13 +36,24 @@ def translate_text_only(text_list, expected_count):
     )
 
     try:
-        payload = {"contents": [{"parts": [{"text": f"{prompt}\n\n{input_text}"}]}]}
+        # ADDED generationConfig to payload
+        payload = {
+            "contents": [{"parts": [{"text": f"{prompt}\n\n{input_text}"}]}],
+            "generationConfig": {
+                "temperature": temp_val,
+                "topP": 0.95,
+                "maxOutputTokens": 4096
+            }
+        }
         r = requests.post(url, json=payload, timeout=30)
         res_json = r.json()
         raw_output = res_json['candidates'][0]['content']['parts'][0]['text'].strip().split('\n')
         translated = [re.sub(r'^L\d{3}:\s*', '', l.strip()) for l in raw_output if re.match(r'^L\d{3}:', l.strip())]
         return translated if len(translated) == expected_count else None
-    except: return None
+    except Exception as e:
+        log(f"API Error: {e}")
+        return None
+
 
 def process_subtitles(original_path):
     # Rule: Check if already translated
@@ -140,6 +158,7 @@ if __name__ == '__main__':
         monitor.check_for_subs()
         if monitor.waitForAbort(10):
             break
+
 
 
 
