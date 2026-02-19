@@ -25,15 +25,17 @@ def translate_text_only(text_list, expected_count):
     except:
         temp_val = 0.15
 
-    # Get Source and Target from modular language file
+    # Fetch names from modular language file
     src_name, _ = get_lang_params(ADDON.getSetting('source_lang'))
-    trg_name, _ = get_lang_params(ADDON.getSetting('target_lang'))
+    trg_name, trg_iso = get_lang_params(ADDON.getSetting('target_lang'))
+
+    # Safety: Ensure AI doesn't get 'Auto-Detect' as a target instruction
+    if trg_iso == "auto":
+        trg_name = "Romanian"
 
     input_text = "\n".join([f"L{i:03}: {text}" for i, text in enumerate(text_list)])
-    
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
-    # Dynamic prompt based on settings
     prompt = (
         f"Translate the following subtitles from {src_name} to {trg_name}. "
         "Keep the same number of lines. Preserve the 'Lxxx:' prefix at the start of each line. "
@@ -48,15 +50,13 @@ def translate_text_only(text_list, expected_count):
         r = requests.post(url, json=payload, timeout=30)
         res_json = r.json()
         
-        if 'candidates' not in res_json: 
-            return None
+        if 'candidates' not in res_json: return None
             
         raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
         
         translated = []
         lines = raw_text.strip().split('\n')
         for line in lines:
-            # Language-blind regex removes everything before the first colon
             clean_line = re.sub(r'^.*?:\s*', '', line.strip())
             translated.append(clean_line)
             
@@ -66,8 +66,10 @@ def translate_text_only(text_list, expected_count):
         return None
 
 def process_subtitles(original_path):
-    # Fetch target language parameters
-    # SAFETY CHECK: Target cannot be Auto-Detect
+    # 1. Fetch parameters first
+    trg_name, trg_iso = get_lang_params(ADDON.getSetting('target_lang'))
+
+    # 2. NOW run the Safety Check
     if trg_iso == "auto":
         log("Target language set to Auto-Detect. Defaulting to Romanian.")
         trg_name = "Romanian"
@@ -81,7 +83,6 @@ def process_subtitles(original_path):
     save_dir = ADDON.getSetting('sub_folder')
     base_name = os.path.basename(original_path)
     
-    # Clean filename of existing 2-letter codes to prevent double extensions
     clean_name = re.sub(r'\.[a-z]{2}\.srt$', '', base_name, flags=re.IGNORECASE)
     clean_name = re.sub(r'\.srt$', '', clean_name, flags=re.IGNORECASE) + trg_ext
     save_path = os.path.join(save_dir, clean_name)
@@ -166,7 +167,6 @@ class GeminiMonitor(xbmc.Monitor):
         if not custom_dir or not xbmcvfs.exists(custom_dir): return
 
         _, files = xbmcvfs.listdir(custom_dir)
-        # Avoid re-processing files that end in any target extension we might have created
         valid_files = [f for f in files if f.lower().endswith('.srt') and not re.search(r'\.[a-z]{2}\.srt$', f.lower())]
         
         if valid_files:
@@ -191,4 +191,3 @@ if __name__ == '__main__':
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
     log("Service stopped.")
-
