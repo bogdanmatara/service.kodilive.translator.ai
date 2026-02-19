@@ -33,10 +33,12 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 7. Notification Modes
 • Show Statistics: Pops up a summary box at the end showing how many lines were translated.
 • Simple Notifications: Only shows a small percentage bar at the top of the screen so it doesn't interrupt your viewing.
+
 🛠 Troubleshooting
 • No translation appears: Check your API key and ensure the "Save Folder" path is correct in settings.
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
