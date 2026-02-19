@@ -24,7 +24,7 @@ def translate_text_only(text_list, expected_count):
     except:
         temp_val = 0.15
 
-    # Prefixing lines for AI consistency
+    # Prefixing lines. Using L000: format for strict tracking.
     input_text = "\n".join([f"L{i:03}: {text}" for i, text in enumerate(text_list)])
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -43,25 +43,21 @@ def translate_text_only(text_list, expected_count):
         res_json = r.json()
         
         if 'candidates' not in res_json: 
-            log("API Error: No candidates found.")
             return None
             
         raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
         
-        # Robust regex to extract text after the prefix
         translated = []
-        pattern = re.compile(r'^L\d{3}:\s*(.*)$', re.MULTILINE)
-        matches = pattern.findall(raw_text)
-        
-        if len(matches) >= expected_count:
-            return matches[:expected_count]
-        else:
-            # Fallback for minor prefix variations
-            lines = raw_text.strip().split('\n')
-            fallback = [re.sub(r'^L\d+:?\s*', '', l) for l in lines]
-            return fallback[:expected_count] if len(fallback) >= expected_count else None
+        lines = raw_text.strip().split('\n')
+        for line in lines:
+            # STRONGER REGEX: Removes everything from start of line up to the first colon.
+            # This handles L001:, Lxxx:, or even hallucinations like Lторое:
+            clean_line = re.sub(r'^.*?:\s*', '', line.strip())
+            translated.append(clean_line)
+            
+        return translated[:expected_count] if len(translated) >= expected_count else None
     except Exception as e:
-        log(f"Translation logic error: {e}")
+        log(f"API Request failed: {e}")
         return None
 
 def process_subtitles(original_path):
@@ -73,7 +69,6 @@ def process_subtitles(original_path):
     save_path = os.path.join(save_dir, clean_name)
 
     if xbmcvfs.exists(save_path):
-        log("File already translated. Loading existing.")
         xbmc.Player().setSubtitles(save_path)
         return
 
@@ -81,9 +76,9 @@ def process_subtitles(original_path):
     
     if not use_notifications:
         pDialog = xbmcgui.DialogProgress()
-        pDialog.create('Translatarr', 'Initializing translation...')
+        pDialog.create('Translatarr', 'Initializing...')
     else:
-        notify(f"Translation started: {clean_name}")
+        notify(f"Starting translation: {clean_name}")
 
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
@@ -93,7 +88,8 @@ def process_subtitles(original_path):
         if not blocks: return
 
         timestamps = [(b[0], b[1]) for b in blocks]
-        texts = [b[2].replace('\n', ' [BR] ') for b in blocks]
+        # Using pipe ' | ' as a safer multi-line separator than [BR]
+        texts = [b[2].replace('\n', ' | ') for b in blocks]
         all_translated = []
         idx = 0
 
@@ -123,29 +119,24 @@ def process_subtitles(original_path):
                 idx += curr_size
             else:
                 if not use_notifications: pDialog.close()
-                notify("Translation failed at current chunk.")
+                notify("Translation error at current segment.")
                 return 
 
-        final_srt = [f"{t[0]}\n{t[1]}\n{txt.replace(' [BR] ', '\n')}\n" for t, txt in zip(timestamps, all_translated)]
+        # Final Formatting: Swapping ' | ' back to newlines and cleaning old [BR] tags
+        final_srt = [f"{t[0]}\n{t[1]}\n{txt.replace(' | ', '\n').replace('[BR]', '\n')}\n" for t, txt in zip(timestamps, all_translated)]
         with xbmcvfs.File(save_path, 'w') as f: f.write("\n".join(final_srt))
         
         xbmc.Player().setSubtitles(save_path)
         if not use_notifications: pDialog.close()
 
         if ADDON.getSettingBool('show_stats'):
-            stats_msg = (
-                f"Status: Success\n"
-                f"File: {clean_name}\n"
-                f"Lines: {len(all_translated)}\n"
-                f"Model: {get_model_string()}\n"
-                f"Temp: {ADDON.getSetting('temp')}"
-            )
+            stats_msg = f"Success!\nFile: {clean_name}\nLines: {len(all_translated)}\nChunk Size: {chunk_size}"
             DIALOG.textviewer("Translation Stats", stats_msg)
         else:
             notify("Translation complete!")
 
     except Exception as e:
-        log(f"Process Error: {e}")
+        log(f"General Error: {e}")
         if 'pDialog' in locals(): pDialog.close()
 
 class GeminiMonitor(xbmc.Monitor):
@@ -174,12 +165,13 @@ class GeminiMonitor(xbmc.Monitor):
 
 if __name__ == '__main__':
     import sys
+    # Handle manual trigger from Programs menu
     if len(sys.argv) > 1 and "service.py" in sys.argv[0]:
         ADDON.openSettings()
     
-    log("Background service started.")
+    log("Translatarr Service Started.")
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
-    log("Background service stopping.")
+    log("Translatarr Service Stopped.")
