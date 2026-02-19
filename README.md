@@ -1,6 +1,6 @@
-🎬 Translatarr: AI-Powered Subtitle Translator
+🎬 Translatarr: Gemini Powered Subtitle Engine
 
-Any Language to Your Language translation addon.
+Instant, context-aware translation for SRT files in any language pair.
 
 This project began as a fork of (https://github.com/Kirek66/service.kodilive.translator.ai) but has since evolved using my own logic for translation and only Gemini as AI.
 
@@ -76,6 +76,7 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
