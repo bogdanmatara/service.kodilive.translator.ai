@@ -33,6 +33,8 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 
 • Source: The language the original subtitles are in. Use "Auto-Detect" if you aren't sure.
 
+• Target: Always ensure the Target Language is set to a specific language (e.g., Romanian). Setting the Target to "Auto-Detect" will cause the translation to fail or return the original text.
+
 • Target: The language you want to read. Translatarr will save files with the correct language code (e.g., .ro.srt for Romanian, .fr.srt for French).
 
 
@@ -74,6 +76,7 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
