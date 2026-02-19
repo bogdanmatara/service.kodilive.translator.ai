@@ -1,10 +1,8 @@
+🎬 Translatarr: AI-Powered Subtitle Translator
 Any Language 2 Your Language tranlation addon.
-
-Set your srt download to Custom from Kodi Subtitles Settings & from addon setting (they need to match)
 
 This project began as a fork of (https://github.com/Kirek66/service.kodilive.translator.ai) but has since evolved using my own logic for translation and only Gemini as AI.
 
-🎬 Translatarr: AI-Powered Subtitle Translator
 Translatarr is a smart Kodi service that uses Google's Gemini AI to provide high-quality, natural-sounding translations for your movies and TV shows. Unlike traditional translators that work word-for-word, Translatarr understands context, slang, and emotion, giving you subtitles that feel like they were written by a human.
 ⚡ Quick Start (Get running in 3 steps)
 1. Get your Key: Visit Google AI Studio and click "Get API Key". It’s free and takes 30 seconds.
@@ -38,6 +36,7 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 • No translation appears: Check your API key and ensure the "Save Folder" path is correct in settings.
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
