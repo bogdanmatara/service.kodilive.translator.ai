@@ -5,6 +5,7 @@ Any Language to Your Language translation addon.
 This project began as a fork of (https://github.com/Kirek66/service.kodilive.translator.ai) but has since evolved using my own logic for translation and only Gemini as AI.
 
 Translatarr is a smart Kodi service that uses Google's Gemini AI to provide high-quality, natural-sounding translations for your movies and TV shows. Unlike traditional translators that work word-for-word, Translatarr understands context, slang, and emotion, giving you subtitles that feel like they were written by a human.
+
 ⚡ Quick Start (Get running in 3 steps)
 1. Get your Key: Visit Google AI Studio and click "Get API Key". It’s free and takes 30 seconds.
 2. Configure: Open Translatarr settings in Kodi. Paste your API Key and select your Target Language (e.g., Romanian).
@@ -36,8 +37,11 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 
 🛠 Troubleshooting
 • No translation appears: Check your API key and ensure the "Save Folder" path is correct in settings.
+
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
+
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
