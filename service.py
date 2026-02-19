@@ -19,11 +19,17 @@ def translate_text_only(text_list, expected_count):
     api_key = ADDON.getSetting('api_key')
     model_name = get_model_string()
     
-    # FETCH TEMPERATURE HERE
+    # Safely convert the text input to a float
     try:
-        temp_val = float(ADDON.getSetting('temp') or 0.15)
-    except:
+        temp_input = ADDON.getSetting('temp')
+        temp_val = float(temp_input) if temp_input else 0.15
+        # Clamp value between 0.0 and 2.0 (Gemini limits)
+        temp_val = max(0.0, min(temp_val, 2.0))
+    except ValueError:
+        log("Invalid temperature input, defaulting to 0.15")
         temp_val = 0.15
+
+    log(f"AI Call: {model_name} | Applied Temp: {temp_val}")
 
     prefixed_lines = [f"L{i:03}: {text}" for i, text in enumerate(text_list)]
     input_text = "\n".join(prefixed_lines)
@@ -36,13 +42,11 @@ def translate_text_only(text_list, expected_count):
     )
 
     try:
-        # ADDED generationConfig to payload
         payload = {
             "contents": [{"parts": [{"text": f"{prompt}\n\n{input_text}"}]}],
             "generationConfig": {
                 "temperature": temp_val,
-                "topP": 0.95,
-                "maxOutputTokens": 4096
+                "topP": 0.95
             }
         }
         r = requests.post(url, json=payload, timeout=30)
@@ -53,7 +57,6 @@ def translate_text_only(text_list, expected_count):
     except Exception as e:
         log(f"API Error: {e}")
         return None
-
 
 def process_subtitles(original_path):
     # Rule: Check if already translated
@@ -158,6 +161,7 @@ if __name__ == '__main__':
         monitor.check_for_subs()
         if monitor.waitForAbort(10):
             break
+
 
 
 
