@@ -1,7 +1,9 @@
-Gemini Any Language  2 Your Language tranlation. 
-Set your srt download to custom from kodi settings & from addon setting (they need to match)
+Any Language 2 Your Language tranlation addon.
 
-This project began as a fork of [Original Project Name] but has since evolved into an independent project.
+Set your srt download to Custom from Kodi Subtitles Settings & from addon setting (they need to match)
+
+This project began as a fork of (https://github.com/Kirek66/service.kodilive.translator.ai) but has since evolved using my own logic for translation and only Gemini as AI.
+
 
 
 
