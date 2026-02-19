@@ -1,4 +1,5 @@
 🎬 Translatarr: AI-Powered Subtitle Translator
+
 Any Language 2 Your Language tranlation addon.
 
 This project began as a fork of (https://github.com/Kirek66/service.kodilive.translator.ai) but has since evolved using my own logic for translation and only Gemini as AI.
@@ -36,6 +37,7 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 • No translation appears: Check your API key and ensure the "Save Folder" path is correct in settings.
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
