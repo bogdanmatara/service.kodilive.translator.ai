@@ -3,11 +3,10 @@
     <category label="Translatarr Config">
         <setting id="api_key" type="text" label="Gemini API Key" default="" />
         <setting id="model" type="enum" label="Model AI" values="Gemini 2.0 Flash|Gemini 1.5 Flash|Gemini 2.5 Flash" default="0" />
-        
         <setting id="temp" type="text" label="Temperature (e.g., 0.15)" default="0.15" />
-        <setting id="chunk_size" type="text" label="Lines per Chunk (e.g., 50 or 100)" default="50" />
-        
+        <setting id="chunk_size" type="text" label="Lines per Chunk" default="50" />
         <setting id="sub_folder" type="folder" label="Save Folder" default="/storage/emulated/0/Download/sub/" />
         <setting id="show_stats" type="bool" label="Show Statistics Pop-up" default="true" />
+        <setting id="notify_mode" type="bool" label="Use Simple Notifications" default="false" />
     </category>
 </settings>
