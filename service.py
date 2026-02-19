@@ -128,26 +128,19 @@ class GeminiMonitor(xbmc.Monitor):
 
 if __name__ == '__main__':
     import sys
-    # Kodi passes at least the script path, so len is 1. 
-    # To detect a manual click vs a background service start:
-    try:
-        # Check if we are running in the 'main' execution thread (the click)
-        # vs the service thread.
-        if "service.py" in sys.argv[0] and len(sys.argv) == 1:
-            log("Manual Launch: Opening Settings")
-            ADDON.openSettings()
-        elif len(sys.argv) > 1:
-            # Handle cases where arguments are passed
-            ADDON.openSettings()
-    except:
-        pass
-
-    # The background service always runs regardless
-    log("Background Service Initialized")
+    # If the script is run manually, sys.argv[0] is the script name.
+    # We check if it's being run as a script (click) vs a service (boot).
+    if len(sys.argv) > 0 and "service.py" in sys.argv[0]:
+        # This forces the settings to open when you click the icon
+        ADDON.openSettings()
+    
+    # Always start the background monitor
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10):
             break
+
+
 
 
