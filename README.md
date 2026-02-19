@@ -18,22 +18,20 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 1. Gemini API Key
    
 • What it is: Your personal "password" to use Google's AI.
-
 • Pro Tip: Copy and paste the key directly to avoid typos. If the key is wrong, the addon will stay silent.
 
-3. Model AI
+2. Model AI
    
 • Options: Gemini 2.0 Flash, 1.5 Flash, etc.
-
 • Recommendation: Gemini 2.0 Flash is the fastest and most cost-effective "brain" available right now.
 
-4. Source & Target Language
+3. Source & Target Language
 
 • Source: The language the original subtitles are in. Use "Auto-Detect" if you aren't sure.
 
 • Target: The language you want to read. Translatarr will save files with the correct language code (e.g., .ro.srt for Romanian, .fr.srt for French).
 
-5. Temperature
+4. Temperature
    
 • What it is: The "Creativity" setting.
 
@@ -41,19 +39,19 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 
 • Higher (0.7+): Allows the AI to use more creative phrasing and slang.
 
-7. Lines per Chunk
+5. Lines per Chunk
    
 • What it is: How many lines are translated at once.
 
 • Recommended: 50 or 100. Larger chunks are faster, but smaller chunks (50) are more reliable for very long movies.
 
-9. Save Folder
+6. Save Folder
     
 • Description: The location where your new subtitles are saved.
 
 • Important: This should be a folder that Kodi has permission to read/write, like your Downloads or Media folder.
 
-11. Notification Modes
+7. Notification Modes
     
 • Show Statistics: Pops up a summary box at the end showing how many lines were translated.
 
@@ -66,6 +64,7 @@ To get the best results, you can fine-tune Translatarr in the settings menu. Her
 • Translation stops midway: This usually happens if the AI hits a "Safety Filter" (common in movies with heavy profanity). Try lowering the Temperature.
 
 • Artifacts: If you see strange characters, ensure you are using the latest version of the addon which includes the "Language-Blind" cleaning logic.
+
 
 
 
