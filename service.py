@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import xbmc, xbmcaddon, xbmcvfs, xbmcgui, os, requests, json, re, time
+from languages import get_lang_params
 
 ADDON = xbmcaddon.Addon('service.translatarr')
 DIALOG = xbmcgui.Dialog()
@@ -24,12 +25,17 @@ def translate_text_only(text_list, expected_count):
     except:
         temp_val = 0.15
 
-    # Prefixing lines. Using L000: format for strict tracking.
+    # Get Source and Target from modular language file
+    src_name, _ = get_lang_params(ADDON.getSetting('source_lang'))
+    trg_name, _ = get_lang_params(ADDON.getSetting('target_lang'))
+
     input_text = "\n".join([f"L{i:03}: {text}" for i, text in enumerate(text_list)])
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    
+    # Dynamic prompt based on settings
     prompt = (
-        "Translate the following English subtitles to Romanian. "
+        f"Translate the following subtitles from {src_name} to {trg_name}. "
         "Keep the same number of lines. Preserve the 'Lxxx:' prefix at the start of each line. "
         "The output must contain exactly the same number of lines as the input."
     )
@@ -50,8 +56,7 @@ def translate_text_only(text_list, expected_count):
         translated = []
         lines = raw_text.strip().split('\n')
         for line in lines:
-            # STRONGER REGEX: Removes everything from start of line up to the first colon.
-            # This handles L001:, Lxxx:, or even hallucinations like Lторое:
+            # Language-blind regex removes everything before the first colon
             clean_line = re.sub(r'^.*?:\s*', '', line.strip())
             translated.append(clean_line)
             
@@ -61,11 +66,18 @@ def translate_text_only(text_list, expected_count):
         return None
 
 def process_subtitles(original_path):
-    if ".ro.srt" in original_path.lower(): return
+    # Fetch target language parameters
+    trg_name, trg_iso = get_lang_params(ADDON.getSetting('target_lang'))
+    trg_ext = f".{trg_iso}.srt"
+
+    if trg_ext in original_path.lower(): return
     
     save_dir = ADDON.getSetting('sub_folder')
     base_name = os.path.basename(original_path)
-    clean_name = re.sub(r'\.(eng|en|ro)?\.srt$', '', base_name, flags=re.IGNORECASE) + ".ro.srt"
+    
+    # Clean filename of existing 2-letter codes to prevent double extensions
+    clean_name = re.sub(r'\.[a-z]{2}\.srt$', '', base_name, flags=re.IGNORECASE)
+    clean_name = re.sub(r'\.srt$', '', clean_name, flags=re.IGNORECASE) + trg_ext
     save_path = os.path.join(save_dir, clean_name)
 
     if xbmcvfs.exists(save_path):
@@ -76,9 +88,9 @@ def process_subtitles(original_path):
     
     if not use_notifications:
         pDialog = xbmcgui.DialogProgress()
-        pDialog.create('Translatarr', 'Initializing...')
+        pDialog.create('Translatarr', f'Translating to {trg_name}...')
     else:
-        notify(f"Starting translation: {clean_name}")
+        notify(f"Translating to {trg_name}: {clean_name}")
 
     try:
         with xbmcvfs.File(original_path, 'r') as f: content = f.read()
@@ -88,7 +100,6 @@ def process_subtitles(original_path):
         if not blocks: return
 
         timestamps = [(b[0], b[1]) for b in blocks]
-        # Using pipe ' | ' as a safer multi-line separator than [BR]
         texts = [b[2].replace('\n', ' | ') for b in blocks]
         all_translated = []
         idx = 0
@@ -119,10 +130,9 @@ def process_subtitles(original_path):
                 idx += curr_size
             else:
                 if not use_notifications: pDialog.close()
-                notify("Translation error at current segment.")
+                notify("Translation segment failed.")
                 return 
 
-        # Final Formatting: Swapping ' | ' back to newlines and cleaning old [BR] tags
         final_srt = [f"{t[0]}\n{t[1]}\n{txt.replace(' | ', '\n').replace('[BR]', '\n')}\n" for t, txt in zip(timestamps, all_translated)]
         with xbmcvfs.File(save_path, 'w') as f: f.write("\n".join(final_srt))
         
@@ -130,13 +140,13 @@ def process_subtitles(original_path):
         if not use_notifications: pDialog.close()
 
         if ADDON.getSettingBool('show_stats'):
-            stats_msg = f"Success!\nFile: {clean_name}\nLines: {len(all_translated)}\nChunk Size: {chunk_size}"
-            DIALOG.textviewer("Translation Stats", stats_msg)
+            stats_msg = f"Target: {trg_name}\nFile: {clean_name}\nLines: {len(all_translated)}"
+            DIALOG.textviewer("Translatarr Stats", stats_msg)
         else:
-            notify("Translation complete!")
+            notify(f"Completed: {trg_name}")
 
     except Exception as e:
-        log(f"General Error: {e}")
+        log(f"Process Error: {e}")
         if 'pDialog' in locals(): pDialog.close()
 
 class GeminiMonitor(xbmc.Monitor):
@@ -150,7 +160,8 @@ class GeminiMonitor(xbmc.Monitor):
         if not custom_dir or not xbmcvfs.exists(custom_dir): return
 
         _, files = xbmcvfs.listdir(custom_dir)
-        valid_files = [f for f in files if f.lower().endswith('.srt') and ".ro.srt" not in f.lower()]
+        # Avoid re-processing files that end in any target extension we might have created
+        valid_files = [f for f in files if f.lower().endswith('.srt') and not re.search(r'\.[a-z]{2}\.srt$', f.lower())]
         
         if valid_files:
             full_paths = [os.path.join(custom_dir, f) for f in valid_files]
@@ -165,13 +176,12 @@ class GeminiMonitor(xbmc.Monitor):
 
 if __name__ == '__main__':
     import sys
-    # Handle manual trigger from Programs menu
     if len(sys.argv) > 1 and "service.py" in sys.argv[0]:
         ADDON.openSettings()
     
-    log("Translatarr Service Started.")
+    log("Service started with Multi-Language support.")
     monitor = GeminiMonitor()
     while not monitor.abortRequested():
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
-    log("Translatarr Service Stopped.")
+    log("Service stopped.")
