@@ -67,7 +67,13 @@ def translate_text_only(text_list, expected_count):
 
 def process_subtitles(original_path):
     # Fetch target language parameters
-    trg_name, trg_iso = get_lang_params(ADDON.getSetting('target_lang'))
+    # SAFETY CHECK: Target cannot be Auto-Detect
+    if trg_iso == "auto":
+        log("Target language set to Auto-Detect. Defaulting to Romanian.")
+        trg_name = "Romanian"
+        trg_iso = "ro"
+        notify("Target cannot be Auto-Detect. Defaulting to Romanian.")
+
     trg_ext = f".{trg_iso}.srt"
 
     if trg_ext in original_path.lower(): return
@@ -185,3 +191,4 @@ if __name__ == '__main__':
         monitor.check_for_subs()
         if monitor.waitForAbort(10): break
     log("Service stopped.")
+
