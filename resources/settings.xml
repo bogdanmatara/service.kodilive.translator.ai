@@ -3,9 +3,7 @@
     <category label="Translatarr Config">
         <setting id="api_key" type="text" label="Gemini API Key" default="" />
         <setting id="model" type="enum" label="Model AI" values="Gemini 2.0 Flash|Gemini 1.5 Flash|Gemini 2.5 Flash" default="0" />
-        
-        <setting id="temp" type="text" label="Temperature (e.g., 0.15)" default="0.15" />
-        
+        <setting id="temp" type="slider" label="Temperature" default="0.15" control="slider" option="float" range="0.00,0.01,1.00" format="%.2f" />
         <setting id="sub_folder" type="folder" label="Save Folder" default="/storage/emulated/0/Download/sub/" />
         <setting id="show_stats" type="bool" label="Show Statistics Pop-up" default="true" />
     </category>
